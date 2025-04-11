@@ -57,7 +57,7 @@ A FastAPI-based movie recommendation system that uses both collaborative filteri
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd test biso
+cd <project-name>
 ```
 
 2. Create a `.env` file based on `.env.example`:
@@ -75,14 +75,14 @@ POSTGRES_DB=movie_recommender
 DATABASE_URL=postgresql://postgres:your_password_here@db:5432/movie_recommender
 
 # API Settings
-PROJECT_NAME=Test Biso
+PROJECT_NAME=Movie Recommender API
 VERSION=1.0.0
 API_V1_STR=/api/v1
 
 # Security
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+ACCESS_TOKEN_EXPIRE_MINUTES=120
 ```
 
 4. Build and start the containers:
@@ -98,7 +98,7 @@ docker-compose up --build
 
 ## Database Migrations
 
-The project uses Alembic for database migrations. Here's how to work with migrations:
+This project uses Alembic for database version control. To manage migrations:
 
 1. Create a new migration:
 ```bash
@@ -130,18 +130,18 @@ Note: The migrations will be automatically applied when the application starts t
 - `GET /api/v1/movies/` - List all movies
 - `GET /api/v1/movies/{movie_id}` - Get movie details
 - `POST /api/v1/movies/` - Create a new movie
-- `GET /api/v1/movies/{user_id}/recommendations` - Get personalized movie recommendations
+- `GET /api/v1/movies/recommendations` - Get personalized movie recommendations
 
 ### Users
 - `POST /api/v1/users/` - Create a new user
 - `GET /api/v1/users/` - List all users
 - `GET /api/v1/users/{user_id}` - Get user details
-- `POST /api/v1/users/{user_id}/favorite-genres/{genre_id}` - Add favorite genre
-- `POST /api/v1/users/{user_id}/favorite-actors/{actor_id}` - Add favorite actor
+- `POST /api/v1/users/{user_id}/favorite-genres/{genre_id}` - Add a favorite genre
+- `POST /api/v1/users/{user_id}/favorite-actors/{actor_id}` - Add a favorite actor
 
 ### Ratings
-- `POST /api/v1/ratings/` - Create a new rating
-- `GET /api/v1/ratings/user/{user_id}` - Get user's ratings
+- `POST /api/v1/ratings/` - Submit a new rating
+- `GET /api/v1/ratings/user/` - Get user's ratings
 - `GET /api/v1/ratings/movie/{movie_id}` - Get movie's ratings
 - `GET /api/v1/ratings/movie/{movie_id}/average` - Get movie's average rating
 
@@ -150,16 +150,16 @@ Note: The migrations will be automatically applied when the application starts t
 The system uses a hybrid approach combining:
 
 1. Collaborative Filtering:
-   - Based on user-movie rating matrix
-   - Uses cosine similarity to find similar users
-   - Recommends movies liked by similar users
+   - Based on a user-item rating matrix
+   - Uses cosine similarity to identify similar users
+   - Recommends movies liked by those users
 
 2. Content-Based Filtering:
-   - Based on movie features (genres, actors)
-   - User preferences (favorite genres, actors)
-   - Calculates similarity scores
+   - Based on movie attributes (genres, actors)
+   - Matches against user preferences (favorite genres, actors)
+   - Calculates similarity scores between user profile and movies
 
-The final recommendations are a combination of both approaches, weighted to provide the most relevant suggestions.
+The final recommendations combine both methods to improve accuracy and relevance.
 
 ## Development
 
@@ -183,13 +183,6 @@ pip install -r requirements.txt
 4. Run the application:
 ```bash
 uvicorn app.main:app --reload
-```
-
-## Testing
-
-To run the tests:
-```bash
-pytest
 ```
 
 ## License
