@@ -26,8 +26,6 @@ def create_movie(
         description=movie.description,
         release_year=movie.release_year
     )
-    db.add(db_movie)
-    
     director = db.query(Director).filter_by(name=movie.director_name).first()
     if not director:
         director = Director(name=movie.director_name)
@@ -35,7 +33,8 @@ def create_movie(
         db.commit()
         db.refresh(director)
     
-    db_movie.director = director 
+    db_movie.director = director
+    db_movie.director_id = director.id
 
     for actor_name in movie.actors:
         actor = db.query(Actor).filter_by(name=actor_name).first()
@@ -50,7 +49,8 @@ def create_movie(
             genre = Genre(name=genre_name)
             db.add(genre)
         db_movie.genres.append(genre)
-
+    
+    db.add(db_movie)
     db.commit()
     db.refresh(db_movie)
     return db_movie
