@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import verify_password
 from app.db.base import get_db
-from app.models.models import User
+from app.models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
-def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-    user = db.query(User).filter(User.username == username).first()
+def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
@@ -37,12 +37,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email = payload.get("sub")
+        if not isinstance(email, str):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception
     return user

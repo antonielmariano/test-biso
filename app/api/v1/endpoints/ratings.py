@@ -2,33 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.db.base import get_db
-from app.schemas import schemas
-from app.models import models
 from app.core.auth import get_current_active_user
+from app.models.movie import Movie
+from app.models.rating import Rating
+from app.models.user import User
+from app.schemas.ratings import RatingCreate, RatingSchema
 
 router = APIRouter()
 
-@router.post("/", response_model=schemas.Rating)
+@router.post("/", response_model=RatingSchema)
 def create_rating(
-    rating: schemas.RatingCreate,
-    user_id: int,
+    rating: RatingCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    if current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to create ratings for this user")
-        
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    movie = db.query(models.Movie).filter(models.Movie.id == rating.movie_id).first()
+    movie = db.query(Movie).filter(Movie.id == rating.movie_id).first()
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
         
-    existing_rating = db.query(models.Rating).filter(
-        models.Rating.user_id == user_id,
-        models.Rating.movie_id == rating.movie_id
+    existing_rating = db.query(Rating).filter(
+        Rating.user_id == current_user.id,
+        Rating.movie_id == rating.movie_id
     ).first()
     
     if existing_rating:
@@ -37,8 +31,8 @@ def create_rating(
         db.refresh(existing_rating)
         return existing_rating
         
-    db_rating = models.Rating(
-        user_id=user_id,
+    db_rating = Rating(
+        user_id=current_user.id,
         movie_id=rating.movie_id,
         score=rating.score
     )
@@ -47,32 +41,28 @@ def create_rating(
     db.refresh(db_rating)
     return db_rating
 
-@router.get("/user/{user_id}", response_model=List[schemas.Rating])
+@router.get("/user", response_model=List[RatingSchema])
 def get_user_ratings(
-    user_id: int,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    if current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to access ratings for this user")
-        
-    ratings = db.query(models.Rating).filter(
-        models.Rating.user_id == user_id
+    current_user: User = Depends(get_current_active_user)
+):  
+    ratings = db.query(Rating).filter(
+        Rating.user_id == current_user.id
     ).offset(skip).limit(limit).all()
     return ratings
 
-@router.get("/movie/{movie_id}", response_model=List[schemas.Rating])
+@router.get("/movie/{movie_id}", response_model=List[RatingSchema])
 def get_movie_ratings(
     movie_id: int,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    ratings = db.query(models.Rating).filter(
-        models.Rating.movie_id == movie_id
+    ratings = db.query(Rating).filter(
+        Rating.movie_id == movie_id
     ).offset(skip).limit(limit).all()
     return ratings
 
@@ -80,10 +70,10 @@ def get_movie_ratings(
 def get_movie_average_rating(
     movie_id: int, 
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    ratings = db.query(models.Rating).filter(
-        models.Rating.movie_id == movie_id
+    ratings = db.query(Rating).filter(
+        Rating.movie_id == movie_id
     ).all()
     
     if not ratings:

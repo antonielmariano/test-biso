@@ -12,37 +12,25 @@ from app.core.config import settings
 from app.db.base import engine
 
 def check_database_ready(retries=5, delay=2):
-    """
-    Verifica se o banco de dados está pronto para aceitar conexões.
-    Implementa um sistema de retry com backoff exponencial.
-    """
     for attempt in range(retries):
         try:
-            # Tenta estabelecer uma conexão
             with engine.connect() as connection:
                 return True
         except OperationalError as e:
-            if attempt == retries - 1:  # Último retry
+            if attempt == retries - 1: 
                 raise Exception(
                     f"Database not ready after {retries} attempts: {str(e)}"
                 )
-            wait = delay * (2 ** attempt)  # Backoff exponencial
+            wait = delay * (2 ** attempt)
             print(f"Database not ready. Waiting {wait} seconds...")
             time.sleep(wait)
     return False
 
 def run_migrations():
-    """
-    Executa as migrações do Alembic de forma programática.
-    """
-    # Verifica se o banco está pronto
     check_database_ready()
-
-    # Configura o Alembic
     alembic_cfg = Config("alembic.ini")
     script = ScriptDirectory.from_config(alembic_cfg)
-
-    # Verifica se há migrações pendentes
+    
     with engine.connect() as connection:
         context = MigrationContext.configure(connection)
         if context.get_current_revision() != script.get_current_head():

@@ -57,7 +57,7 @@ A FastAPI-based movie recommendation system that uses both collaborative filteri
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd movie-recommender
+cd test biso
 ```
 
 2. Create a `.env` file based on `.env.example`:
@@ -75,7 +75,7 @@ POSTGRES_DB=movie_recommender
 DATABASE_URL=postgresql://postgres:your_password_here@db:5432/movie_recommender
 
 # API Settings
-PROJECT_NAME=Movie Recommender API
+PROJECT_NAME=Test Biso
 VERSION=1.0.0
 API_V1_STR=/api/v1
 
@@ -102,24 +102,24 @@ The project uses Alembic for database migrations. Here's how to work with migrat
 
 1. Create a new migration:
 ```bash
-docker-compose exec api alembic revision --autogenerate -m "description of changes"
+docker-compose exec web alembic revision --autogenerate -m "description of changes"
 ```
 
 2. Apply migrations:
 ```bash
-docker-compose exec api alembic upgrade head
+docker-compose exec web alembic upgrade head
 ```
 
 3. Rollback migrations:
 ```bash
-docker-compose exec api alembic downgrade -1  # Rollback one migration
-docker-compose exec api alembic downgrade base  # Rollback all migrations
+docker-compose exec web alembic downgrade -1  # Rollback one migration
+docker-compose exec web alembic downgrade base  # Rollback all migrations
 ```
 
 4. Check migration status:
 ```bash
-docker-compose exec api alembic current  # Show current migration
-docker-compose exec api alembic history  # Show migration history
+docker-compose exec web alembic current  # Show current migration
+docker-compose exec web alembic history  # Show migration history
 ```
 
 Note: The migrations will be automatically applied when the application starts through the `run_migrations()` function in `app/db/migrations.py`.

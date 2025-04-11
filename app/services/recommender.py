@@ -2,7 +2,12 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy.orm import Session
 from typing import List
-from app.models.models import Movie, Rating, User, Genre, Actor
+
+from app.models.actor import Actor
+from app.models.genre import Genre
+from app.models.movie import Movie
+from app.models.rating import Rating
+from app.models.user import User
 
 class MovieRecommender:
     def __init__(self, db: Session):
@@ -15,10 +20,14 @@ class MovieRecommender:
         
         user_movie_matrix = np.zeros((len(users), len(movies)))
         
+        user_ids = [user.id for user in users]
+        movie_ids = [movie.id for movie in movies]
+        
         for rating in ratings:
-            user_idx = users.index(rating.user)
-            movie_idx = movies.index(rating.movie)
-            user_movie_matrix[user_idx, movie_idx] = rating.score
+            if rating.user_id in user_ids and rating.movie_id in movie_ids:
+                user_idx = user_ids.index(rating.user_id)
+                movie_idx = movie_ids.index(rating.movie_id)
+                user_movie_matrix[user_idx, movie_idx] = rating.score
             
         return user_movie_matrix, users, movies
 
@@ -43,11 +52,13 @@ class MovieRecommender:
     def collaborative_filtering(self, user_id: int, n_recommendations: int = 5) -> List[Movie]:
         user_movie_matrix, users, movies = self.get_user_movie_matrix()
         
+        if user_movie_matrix.shape[1] == 0:
+            return []  
         try:
             user_idx = next(i for i, u in enumerate(users) if u.id == user_id)
         except StopIteration:
             return []
-            
+    
         user_similarity = cosine_similarity(user_movie_matrix)
         
         similar_users = user_similarity[user_idx].argsort()[::-1][1:6]
@@ -93,9 +104,14 @@ class MovieRecommender:
         cf_recommendations = self.collaborative_filtering(user_id, n_recommendations)
         cb_recommendations = self.content_based_filtering(user_id, n_recommendations)
         
-        all_recommendations = list(set(cf_recommendations + cb_recommendations))
+        all_recommendations = []
+        seen = set()
         
-        if len(all_recommendations) > n_recommendations:
-            return np.random.choice(all_recommendations, n_recommendations, replace=False).tolist()
-            
-        return all_recommendations 
+        for movie in cb_recommendations + cf_recommendations:
+            if movie.id not in seen:
+                all_recommendations.append(movie)
+                seen.add(movie.id)
+            if len(all_recommendations) >= n_recommendations:
+                break
+    
+        return all_recommendations

@@ -2,76 +2,113 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.db.base import get_db
-from app.schemas import schemas
-from app.models import models
+from app.models.actor import Actor
+from app.models.director import Director
+from app.models.genre import Genre
+from app.models.movie import Movie 
+from app.models.rating import Rating
 from app.core.auth import get_current_active_user
+from app.models.user import User
+from app.schemas.movies import MovieCreate, MovieSchema
 from app.services.recommender import MovieRecommender
+from app.schemas.ratings import RatingCreate, RatingSchema
 
 router = APIRouter()
 
-@router.post("/", response_model=schemas.Movie)
+@router.post("/", response_model= MovieSchema)
 def create_movie(
-    movie: schemas.MovieCreate,
+    movie: MovieCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    db_movie = models.Movie(
+    db_movie = Movie(
         title=movie.title,
         description=movie.description,
-        rating=movie.rating,
-        year=movie.year,
-        director=movie.director
+        release_year=movie.release_year
     )
     db.add(db_movie)
+    
+    director = db.query(Director).filter_by(name=movie.director_name).first()
+    if not director:
+        director = Director(name=movie.director_name)
+        db.add(director)
+        db.commit()
+        db.refresh(director)
+    
+    db_movie.director = director 
+
+    for actor_name in movie.actors:
+        actor = db.query(Actor).filter_by(name=actor_name).first()
+        if not actor:
+            actor = Actor(name=actor_name)
+            db.add(actor)
+        db_movie.actors.append(actor)
+
+    for genre_name in movie.genres:
+        genre = db.query(Genre).filter_by(name=genre_name).first()
+        if not genre:
+            genre = Genre(name=genre_name)
+            db.add(genre)
+        db_movie.genres.append(genre)
+
     db.commit()
     db.refresh(db_movie)
     return db_movie
-
-@router.get("/", response_model=List[schemas.Movie])
+ 
+@router.get("/", response_model=List[MovieSchema])
 def get_movies(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    movies = db.query(models.Movie).offset(skip).limit(limit).all()
+    movies = db.query(Movie).offset(skip).limit(limit).all()
     return movies
-
-@router.get("/{movie_id}", response_model=schemas.Movie)
+    
+@router.get("/recommendations", response_model=List[MovieSchema])
+def get_recommendations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    recommender = MovieRecommender(db)
+    recommended_movies = recommender.get_recommendations(current_user.id)
+    return recommended_movies 
+        
+@router.get("/{movie_id}", response_model=MovieSchema)
 def get_movie(
     movie_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    movie = db.query(models.Movie).filter(models.Movie.id == movie_id).first()
+    movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
 
-@router.post("/{movie_id}/rate", response_model=schemas.Rating)
+@router.post("/{movie_id}/rate", response_model=RatingSchema)
 def rate_movie(
     movie_id: int,
-    rating: schemas.RatingCreate,
+    rating: RatingCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user)
 ):
-    movie = db.query(models.Movie).filter(models.Movie.id == movie_id).first()
+    movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if movie is None:
         raise HTTPException(status_code=404, detail="Movie not found")
     
-    existing_rating = db.query(models.Rating).filter(
-        models.Rating.user_id == current_user.id,
-        models.Rating.movie_id == movie_id
+    existing_rating = db.query(Rating).filter(
+        Rating.user_id == current_user.id,
+        Rating.movie_id == movie_id
     ).first()
     
     if existing_rating:
-        existing_rating.rating = rating.rating
+        existing_rating.rating = rating.score
         db.commit()
         db.refresh(existing_rating)
         return existing_rating
     
-    db_rating = models.Rating(
-        rating=rating.rating,
+    db_rating = Rating(
+        rating=rating.score,
         user_id=current_user.id,
         movie_id=movie_id
     )
@@ -80,11 +117,3 @@ def rate_movie(
     db.refresh(db_rating)
     return db_rating
 
-@router.get("/recommendations/", response_model=List[schemas.Movie])
-def get_recommendations(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    recommender = MovieRecommender(db)
-    recommended_movies = recommender.get_recommendations(current_user.id)
-    return recommended_movies 
